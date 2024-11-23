@@ -1,0 +1,79 @@
+/* Base styles for chat container */
+#chat-container {
+    max-width: min(800px, 90vw);
+    min-width: min(400px, 85vw);
+    width: min(600px, 85vw);
+}
+
+/* Media query for screens 1500px or less */
+@media screen and (max-width: 1500px) {
+    #chat-container {
+        width: 400px;
+        min-width: 400px;
+    }
+
+    #main-iframe.chat-open {
+        width: calc(100% - 400px);
+    }
+}
+
+/* Media queries for smaller screens */
+@media screen and (max-width: 768px) {
+    #chat-container {
+        width: min(400px, 95vw) !important;
+        max-width: 95vw;
+        min-width: 95vw;
+        right: -95vw;
+    }
+
+    #main-iframe.chat-open {
+        width: 0;
+        display: none;
+    }
+
+    .resize-handle {
+        display: none;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    #chat-container {
+        width: 100vw !important;
+        max-width: 100vw;
+        min-width: 100vw;
+        right: -100vw;
+    }
+
+    .chat-header {
+        padding: 0.75rem;
+    }
+
+    #chat-messages {
+        padding: 0.75rem;
+    }
+
+    #chat-input-container {
+        padding: 0.75rem;
+    }
+}
+
+/* Adjust iframe width when chat is open */
+#main-iframe.chat-open {
+    width: calc(100% - min(500px, 85vw));
+}
+
+/* Height-based adjustments */
+@media screen and (max-height: 600px) {
+    .chat-header {
+        padding: 0.75rem 1rem;
+    }
+
+    #chat-messages {
+        height: calc(100vh - 120px);
+    }
+
+    .message {
+        margin: 0.75rem 0;
+        padding: 0.875rem;
+    }
+}

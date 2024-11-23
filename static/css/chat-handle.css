@@ -1,0 +1,48 @@
+.resize-handle {
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 140px;
+    cursor: ew-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    z-index: 1001;
+}
+
+.resize-handle::after {
+    content: '';
+    width: 4px;
+    height: 40px;
+    background: var(--primary-color);
+    border-radius: 2px;
+    opacity: 0.3;
+    transition: all 0.2s ease;
+}
+
+.resize-handle:hover::after,
+.resize-handle.active::after {
+    opacity: 0.8;
+    height: 60px;
+}
+
+/* Styles for when resizing is in progress */
+.is-resizing {
+    user-select: none;
+    cursor: ew-resize !important;
+}
+
+.is-resizing .resize-handle::after {
+    opacity: 1;
+    height: 80px;
+}
+
+/* Hide resize handle on mobile */
+@media screen and (max-width: 768px) {
+    .resize-handle {
+        display: none;
+    }
+}

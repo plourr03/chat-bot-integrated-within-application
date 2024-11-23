@@ -1,0 +1,22 @@
+/* iframe.css */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+#main-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#main-iframe.chat-open {
+    width: calc(100% - 500px);
+}
+
+#main-iframe.is-resizing {
+    transition: none !important;
+}

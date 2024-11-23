@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Iframe with Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/iframe.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat-bot.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/re-sizing.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+</head>
+<body>
+    <iframe id="main-iframe" src="https://example.com"></iframe>
+    
+    <button id="chat-button" class="pulse">
+        <span class="material-icons-round">tips_and_updates</span>
+    </button>
+    
+    <div id="chat-container">
+        <div class="chat-header">
+            <div class="header-content">
+                <h3>AI Assistant</h3>
+                <p class="header-description">AI assistant for procurement team, trained on emails from hodleremail@outlook.com. CC this address in your emails to include them in the AI's knowledge base.</p>
+            </div>
+            <button class="close-chat" aria-label="Close chat">
+                <span class="material-icons-round">close</span>
+            </button>
+            <div class="resize-handle"></div>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-container">
+            <div class="quick-prompts">
+                <div class="quick-prompts-header">
+                    <span class="quick-prompts-title">Build Your Query</span>
+                    <span class="material-icons-round toggle-icon">expand_more</span>
+                </div>
+                <div class="quick-prompts-content">
+                    <div id="prompt-grid" class="quick-prompts-grid">
+                        <button class="quick-prompt-card" onclick="showSecondStep('po')">
+                            <div class="prompt-icon">
+                                <span class="material-icons-round">receipt_long</span>
+                            </div>
+                            <div class="prompt-info">
+                                <span class="prompt-label">PO Search</span>
+                                <span class="prompt-description">Track purchase orders</span>
+                            </div>
+                        </button>
+                        
+                        <button class="quick-prompt-card" onclick="showSecondStep('part')">
+                            <div class="prompt-icon">
+                                <span class="material-icons-round">inventory_2</span>
+                            </div>
+                            <div class="prompt-info">
+                                <span class="prompt-label">Part Search</span>
+                                <span class="prompt-description">Find part details</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="input-wrapper">
+                <input type="text" id="chat-input" placeholder="Type your message...">
+                <button onclick="sendMessage()">
+                    <span class="material-icons-round">send</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
