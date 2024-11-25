@@ -13,8 +13,10 @@ body, html {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-#main-iframe.chat-open {
-    width: calc(100% - 500px);
+#main-iframe.pinned {
+    width: calc(100% - var(--chat-width));
+    margin-right: 0;
+    transform: none;
 }
 
 #main-iframe.is-resizing {

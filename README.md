@@ -123,9 +123,6 @@ endLine: 32
 - Flask
 - OpenAI Python SDK
 
-## License
-
-MIT License
 
 ## Contributing
 

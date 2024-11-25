@@ -1,32 +1,72 @@
 // script.js
-const chatButton = document.getElementById('chat-button');
-const chatContainer = document.getElementById('chat-container');
-const chatInput = document.getElementById('chat-input');
-const chatMessages = document.getElementById('chat-messages');
-const mainIframe = document.getElementById('main-iframe');
-const closeButton = document.querySelector('.close-chat');
-const resizeHandle = document.querySelector('.resize-handle');
+let chatButton, chatContainer, chatInput, chatMessages, mainIframe, closeButton, pinButton;
 
 let isMessageInProgress = false;
-let isResizing = false;
-let startX;
-let startWidth;
-let rafId = null;
+let chatHistory = [];
+window.isPinned = false;
 
-function getResponsiveWidths() {
-    if (window.innerWidth <= 1500) {
-        return {
-            minWidth: 300,
-            maxWidth: 800,
-            defaultWidth: 400
-        };
+function ensureUserId() {
+    let userId = localStorage.getItem('user_id');
+    if (!userId) {
+        userId = crypto.randomUUID();
+        localStorage.setItem('user_id', userId);
     }
-    return {
-        minWidth: Math.min(300, window.innerWidth * 0.85),
-        maxWidth: Math.min(800, window.innerWidth * 0.9),
-        defaultWidth: Math.min(500, window.innerWidth * 0.85)
-    };
+    return userId;
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize all global variables
+    chatButton = document.getElementById('chat-button');
+    chatContainer = document.getElementById('chat-container');
+    chatInput = document.getElementById('chat-input');
+    chatMessages = document.getElementById('chat-messages');
+    mainIframe = document.getElementById('main-iframe');
+    closeButton = document.querySelector('.close-chat');
+    pinButton = document.querySelector('.pin-chat');
+
+    // Only add event listeners if elements exist
+    if (chatButton) {
+        chatButton.addEventListener('click', () => {
+            const isHidden = !chatContainer.classList.contains('open');
+            toggleChat(isHidden);
+            chatButton.classList.toggle('pulse');
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            if (window.isPinned) {
+                // First unpin the chat
+                window.isPinned = false;
+                pinButton.classList.remove('active');
+                chatContainer.classList.remove('pinned');
+                mainIframe.classList.remove('pinned');
+                
+                // Reset iframe width
+                mainIframe.style.width = '100%';
+                mainIframe.style.marginRight = '0';
+                
+                // Store pinned state
+                localStorage.setItem('chatPinned', 'false');
+            }
+            
+            // Then close the chat
+            toggleChat(false);
+            chatButton.classList.toggle('pulse');
+        });
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', ensureUserId);
+
 const processingStages = [
     {
         dots: true,
@@ -59,26 +99,33 @@ const processingStages = [
         duration: 4000
     }
 ];
-
 function toggleChat(show) {
+    if (!chatContainer) {
+        console.error('Chat container not initialized');
+        return;
+    }
+
     if (show) {
         const { defaultWidth } = getResponsiveWidths();
         document.body.style.overflow = 'hidden';
         chatContainer.style.display = 'flex';
         
-        chatContainer.style.width = window.innerWidth <= 1500 ? '400px' : `${defaultWidth}px`;
+        const width = window.innerWidth <= 1500 ? '400px' : `${defaultWidth}px`;
+        chatContainer.style.width = width;
+        document.documentElement.style.setProperty('--chat-width', width);
         
         requestAnimationFrame(() => {
             chatContainer.classList.add('open');
-            if (window.innerWidth > 768) {
-                const width = window.innerWidth <= 1500 ? '400px' : chatContainer.style.width || '500px';
-                mainIframe.style.width = `calc(100% - ${width})`;
+            if (window.isPinned && window.innerWidth > 768) {
+                mainIframe.classList.add('pinned');
             }
         });
-    } else {
+    } else if (!window.isPinned) {
         document.body.style.overflow = '';
         chatContainer.classList.remove('open');
+        mainIframe.classList.remove('pinned');
         mainIframe.style.width = '100%';
+        mainIframe.style.transform = 'none';
         
         const handleTransitionEnd = () => {
             chatContainer.style.display = 'none';
@@ -88,23 +135,6 @@ function toggleChat(show) {
         chatContainer.addEventListener('transitionend', handleTransitionEnd);
     }
 }
-
-chatButton.addEventListener('click', () => {
-    const isHidden = !chatContainer.classList.contains('open');
-    toggleChat(isHidden);
-    chatButton.classList.toggle('pulse');
-});
-
-closeButton.addEventListener('click', () => {
-    toggleChat(false);
-    chatButton.classList.toggle('pulse');
-});
-
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
-});
 
 function createThinkingIndicator() {
     const container = document.createElement('div');
@@ -130,14 +160,25 @@ async function animateThinking(thinkingDiv) {
     const textDiv = thinkingDiv.querySelector('.thinking-text');
     const dotsDiv = thinkingDiv.querySelector('.thinking');
     let currentStage = 0;
+    let isAnimating = true;
 
     function typeText(text) {
-        textDiv.innerHTML = '';
         return new Promise(resolve => {
+            if (!isAnimating) {
+                resolve();
+                return;
+            }
+
+            textDiv.innerHTML = '';
             const chars = text.split('');
             let i = 0;
             
             function type() {
+                if (!isAnimating) {
+                    resolve();
+                    return;
+                }
+
                 if (i < chars.length) {
                     if (chars[i] === ' ') {
                         textDiv.appendChild(document.createTextNode(' '));
@@ -158,25 +199,36 @@ async function animateThinking(thinkingDiv) {
         });
     }
 
-    return new Promise((resolve) => {
-        async function updateStage() {
-            if (currentStage >= processingStages.length) {
-                currentStage = 0;
-            }
-
-            const stage = processingStages[currentStage];
-            await typeText(stage.text);
-            dotsDiv.style.display = stage.dots ? 'flex' : 'none';
-            currentStage++;
+    const interval = setInterval(async () => {
+        if (!isAnimating) {
+            clearInterval(interval);
+            return;
         }
 
-        const interval = setInterval(async () => {
-            await updateStage();
-        }, 5000);
+        if (currentStage >= processingStages.length) {
+            currentStage = 0;
+        }
 
-        updateStage(); // Initial update
-        return { interval, element: thinkingDiv };
-    });
+        const stage = processingStages[currentStage];
+        await typeText(stage.text);
+        if (dotsDiv) {
+            dotsDiv.style.display = stage.dots ? 'flex' : 'none';
+        }
+        currentStage++;
+    }, 5000);
+
+    // Initial update
+    const stage = processingStages[currentStage];
+    await typeText(stage.text);
+    if (dotsDiv) {
+        dotsDiv.style.display = stage.dots ? 'flex' : 'none';
+    }
+
+    // Return cleanup function
+    return () => {
+        isAnimating = false;
+        clearInterval(interval);
+    };
 }
 
 function sendMessage() {
@@ -184,8 +236,6 @@ function sendMessage() {
     if (!message || isMessageInProgress) return;
 
     isMessageInProgress = true;
-    
-    // Disable input and send button while processing
     chatInput.disabled = true;
     const sendButton = document.querySelector('#chat-input-container button');
     sendButton.disabled = true;
@@ -194,37 +244,102 @@ function sendMessage() {
     addMessage(message, 'user-message');
     chatInput.value = '';
 
+    // Create message container for streaming response (initially hidden)
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot-message';
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    messageDiv.appendChild(contentDiv);
+    chatMessages.appendChild(messageDiv);
+
     // Create and add thinking indicator
     const thinkingDiv = createThinkingIndicator();
     chatMessages.appendChild(thinkingDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Start thinking animation
-    const thinkingAnimation = animateThinking(thinkingDiv);
+    let accumulatedText = '';
+    let isThinkingComplete = false;
+    let pendingText = '';
+    let pollInterval;
 
-    // Send message to server
+    // Start thinking animation
+    let cleanup = () => {}; // Default no-op cleanup function
+
+    const startThinking = async () => {
+        cleanup = await animateThinking(thinkingDiv);
+    };
+
+    startThinking();
+
+    // Send initial request
     fetch('/chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: message })
+        body: JSON.stringify({ 
+            message: message,
+            user_id: localStorage.getItem('user_id') || crypto.randomUUID(),
+            chat_history: chatHistory
+        })
     })
     .then(response => response.json())
     .then(data => {
-        // Clean up thinking animation
-        clearInterval(thinkingAnimation.interval);
-        thinkingDiv.remove();
-        addMessage(data.response, 'bot-message');
+        if (data.poll_id) {
+            // Start polling after 5 seconds
+            setTimeout(() => {
+                pollInterval = setInterval(() => {
+                    fetch(`/poll/${data.poll_id}`)
+                        .then(response => response.json())
+                        .then(pollData => {
+                            if (!isThinkingComplete) {
+                                pollData.messages.forEach(msg => {
+                                    if (msg.type === 'content') {
+                                        pendingText += msg.content;
+                                    }
+                                });
+                            } else {
+                                pollData.messages.forEach(msg => {
+                                    if (msg.type === 'content') {
+                                        accumulatedText += msg.content;
+                                        typeMessageSteadily(contentDiv, accumulatedText);
+                                    }
+                                });
+                            }
+
+                            if (pollData.done) {
+                                clearInterval(pollInterval);
+                                // Add the assistant's complete response to chat history
+                                chatHistory.push({ role: "assistant", content: accumulatedText });
+                                isMessageInProgress = false;
+                                chatInput.disabled = false;
+                                sendButton.disabled = false;
+                                chatInput.focus();
+                            }
+                        });
+                }, 50); // Poll every second
+            }, 5000);
+            // After 5 seconds, remove thinking indicator and start displaying content
+            setTimeout(() => {
+                cleanup();
+                thinkingDiv.remove();
+                isThinkingComplete = true;
+                messageDiv.classList.add('visible');
+                if (pendingText) {
+                    accumulatedText = pendingText;
+                    typeMessageSteadily(contentDiv, accumulatedText);
+                }
+            }, 5000);
+        }
     })
     .catch(error => {
         console.error('Error:', error);
-        clearInterval(thinkingAnimation.interval);
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+        cleanup();
         thinkingDiv.remove();
         addMessage('Sorry, something went wrong.', 'bot-message');
-    })
-    .finally(() => {
-        // Re-enable input and send button
         isMessageInProgress = false;
         chatInput.disabled = false;
         sendButton.disabled = false;
@@ -242,6 +357,13 @@ document.querySelectorAll('.example-card').forEach(card => {
 function addMessage(message, className) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${className}`;
+    
+    // Update chat history
+    if (className === 'user-message') {
+        chatHistory.push({ role: "user", content: message });
+    } else if (className === 'bot-message') {
+        chatHistory.push({ role: "assistant", content: message });
+    }
     
     if (className === 'bot-message') {
         const contentDiv = document.createElement('div');
@@ -298,115 +420,110 @@ function updateBotMessage(element, message) {
         pre.appendChild(copyButton);
     });
 }
-
-resizeHandle.addEventListener('mousedown', initResize);
-document.addEventListener('mousemove', handleResize);
-document.addEventListener('mouseup', stopResize);
-
-function initResize(e) {
-    if (!e.target.closest('.resize-handle')) return;
-    
-    isResizing = true;
-    startX = e.clientX;
-    startWidth = parseInt(getComputedStyle(chatContainer).width, 10);
-    
-    // Add visual feedback classes
-    document.body.classList.add('is-resizing');
-    chatContainer.classList.add('is-resizing');
-    mainIframe.classList.add('is-resizing');
-    resizeHandle.classList.add('active');
-    
-    // Create overlay for better mouse handling
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 10000;
-        cursor: col-resize;
-    `;
-    document.body.appendChild(overlay);
-    
-    // Store overlay reference
-    window._resizeOverlay = overlay;
-    
-    // Prevent text selection
-    e.preventDefault();
-}
-
-function handleResize(e) {
-    if (!isResizing) return;
-    
-    const { minWidth, maxWidth } = getResponsiveWidths();
-    
-    // Use requestAnimationFrame for smooth resizing
-    rafId = requestAnimationFrame(() => {
-        const delta = startX - e.clientX;
-        const newWidth = Math.min(Math.max(startWidth + delta, minWidth), maxWidth);
-        
-        // Add smooth animation during resize
-        chatContainer.style.width = `${newWidth}px`;
-        
-        if (window.innerWidth > 768) {
-            mainIframe.style.width = `calc(100% - ${newWidth}px)`;
+function typeMessageSteadily(container, text, speed = 30) {
+    // Convert the text to markdown first
+    const md = window.markdownit({
+        highlight: function (str, lang) {
+            if (lang && window.hljs.getLanguage(lang)) {
+                try {
+                    return '<pre class="hljs code-block"><code>' +
+                           window.hljs.highlight(str, { language: lang }).value +
+                           '</code></pre>';
+                } catch (__) {}
+            }
+            return '<pre class="hljs code-block"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
         }
-        
-        // Update width indicator (optional)
-        const widthIndicator = document.querySelector('.width-indicator') || createWidthIndicator();
-        widthIndicator.textContent = `${Math.round(newWidth)}px`;
-        widthIndicator.style.left = `${e.clientX}px`;
     });
-}
 
-function stopResize() {
-    if (!isResizing) return;
+    const htmlContent = md.render(text);
     
-    isResizing = false;
-    
-    // Remove visual feedback
-    document.body.classList.remove('is-resizing');
-    chatContainer.classList.remove('is-resizing');
-    mainIframe.classList.remove('is-resizing');
-    resizeHandle.classList.remove('active');
-    
-    // Remove overlay
-    if (window._resizeOverlay) {
-        window._resizeOverlay.remove();
-        window._resizeOverlay = null;
+    // If container is empty, initialize it with a typing container
+    if (!container.innerHTML) {
+        container.innerHTML = '<div class="typing-content"></div>';
     }
     
-    // Remove width indicator if exists
-    const widthIndicator = document.querySelector('.width-indicator');
-    if (widthIndicator) widthIndicator.remove();
+    const typingContent = container.querySelector('.typing-content');
     
-    // Cancel any pending animation frame
-    if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
+    // Create a temporary div to parse the HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    
+    // Clear existing content
+    typingContent.innerHTML = '';
+    
+    // Function to type out text nodes
+    function typeText(node, callback) {
+        const text = node.textContent;
+        let index = 0;
+        
+        function type() {
+            if (index < text.length) {
+                node.textContent = text.slice(0, index + 1);
+                index++;
+                setTimeout(type, speed);
+            } else {
+                callback();
+            }
+        }
+        type();
     }
-}
+    
+    // Function to process nodes recursively
+    function processNodes(parentNode) {
+        const nodes = Array.from(parentNode.childNodes);
+        let currentIndex = 0;
 
-// Helper function to create width indicator
-function createWidthIndicator() {
-    const indicator = document.createElement('div');
-    indicator.className = 'width-indicator';
-    indicator.style.cssText = `
-        position: fixed;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--primary-color);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        pointer-events: none;
-        z-index: 10001;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    `;
-    document.body.appendChild(indicator);
-    return indicator;
+        function processNextNode() {
+            if (currentIndex >= nodes.length) {
+                return;
+            }
+
+            const node = nodes[currentIndex];
+            if (node.nodeType === Node.TEXT_NODE) {
+                const span = document.createElement('span');
+                span.textContent = '';
+                typingContent.appendChild(span);
+                typeText(span, () => {
+                    currentIndex++;
+                    processNextNode();
+                });
+            } else {
+                const clone = node.cloneNode(true);
+                typingContent.appendChild(clone);
+                currentIndex++;
+                processNextNode();
+            }
+        }
+
+        processNextNode();
+    }
+
+    processNodes(tempDiv);
+
+    // Add copy buttons to any code blocks
+    container.querySelectorAll('pre code').forEach((block) => {
+        if (!block.parentElement.querySelector('.copy-code-btn')) {
+            const copyButton = document.createElement('button');
+            copyButton.className = 'copy-code-btn';
+            copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+            copyButton.onclick = (e) => {
+                e.stopPropagation();
+                const codeText = block.textContent;
+                navigator.clipboard.writeText(codeText).then(() => {
+                    copyButton.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+                    }, 2000);
+                });
+            };
+            
+            const pre = block.parentElement;
+            pre.style.position = 'relative';
+            pre.appendChild(copyButton);
+        }
+    });
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 // Add click handlers for example questions
@@ -629,21 +746,74 @@ function resetPrompts() {
     `;
 }
 
-// Add click handler for collapsible quick prompts
-document.querySelector('.quick-prompts-header').addEventListener('click', function() {
-    const quickPrompts = this.closest('.quick-prompts');
-    quickPrompts.classList.toggle('collapsed');
-    
-    // Store the state in localStorage
-    localStorage.setItem('quickPromptsCollapsed', quickPrompts.classList.contains('collapsed'));
+document.addEventListener('DOMContentLoaded', () => {
+    const quickPromptsHeader = document.querySelector('.quick-prompts-header');
+    if (quickPromptsHeader) {
+        quickPromptsHeader.addEventListener('click', function() {
+            const quickPrompts = this.closest('.quick-prompts');
+            quickPrompts.classList.toggle('collapsed');
+            
+            // Store the state in localStorage
+            localStorage.setItem('quickPromptsCollapsed', quickPrompts.classList.contains('collapsed'));
+        });
+    }
 });
 
-// Check stored state on page load
+// Move the pinButton event listener inside DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
     const quickPrompts = document.querySelector('.quick-prompts');
+    const pinButton = document.querySelector('.pin-chat');
+    
+    // Check stored states
     const isCollapsed = localStorage.getItem('quickPromptsCollapsed') === 'true';
-    if (isCollapsed) {
+    if (isCollapsed && quickPrompts) {
         quickPrompts.classList.add('collapsed');
+    }
+    
+    // Check if chat was previously pinned
+    const wasPinned = localStorage.getItem('chatPinned') === 'true';
+    if (wasPinned && pinButton) {
+        window.isPinned = true;
+        pinButton.classList.add('active');
+        chatContainer.classList.add('pinned');
+        toggleChat(true);
+    }
+
+    // Add pin button event listener
+    if (pinButton) {
+        pinButton.addEventListener('click', () => {
+            window.isPinned = !window.isPinned;
+            pinButton.classList.toggle('active');
+            chatContainer.classList.toggle('pinned');
+            
+            const { minWidth, maxWidth, defaultWidth } = getResponsiveWidths();
+            const currentWidth = parseInt(getComputedStyle(chatContainer).width, 10);
+            
+            if (window.isPinned) {
+                mainIframe.classList.add('pinned');
+                // Update the chat width and iframe position when pinning
+                document.documentElement.style.setProperty('--chat-width', `${currentWidth}px`);
+                mainIframe.style.width = `calc(100% - ${currentWidth}px)`;
+                mainIframe.style.marginRight = '0';  // Remove the margin
+            } else {
+                // Reset everything when unpinning
+                mainIframe.classList.remove('pinned');
+                mainIframe.style.width = '100%';
+                mainIframe.style.marginRight = '0';
+                document.documentElement.style.setProperty('--chat-width', `${currentWidth}px`);
+                
+                // Reset to default width if outside bounds
+                if (currentWidth < minWidth || currentWidth > maxWidth) {
+                    chatContainer.style.width = `${defaultWidth}px`;
+                    document.documentElement.style.setProperty('--chat-width', `${defaultWidth}px`);
+                }
+            }
+            
+            localStorage.setItem('chatPinned', window.isPinned);
+            pinButton.setAttribute('aria-label', window.isPinned ? 'Unpin chat' : 'Pin chat');
+            pinButton.querySelector('.material-icons-round').style.transform = 
+                window.isPinned ? 'rotate(0deg)' : 'rotate(45deg)';
+        });
     }
 });
 

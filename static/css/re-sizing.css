@@ -3,13 +3,24 @@
     max-width: min(800px, 90vw);
     min-width: min(400px, 85vw);
     width: min(600px, 85vw);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chat-container.pinned {
+    min-width: 300px;
+    max-width: min(800px, 90vw);
+    border-left: none;
 }
 
 /* Media query for screens 1500px or less */
 @media screen and (max-width: 1500px) {
-    #chat-container {
-        width: 400px;
-        min-width: 400px;
+    :root {
+        --chat-width: 400px;
+    }
+    
+    #chat-container:not(.pinned) {
+        width: var(--chat-width);
+        min-width: var(--chat-width);
     }
 
     #main-iframe.chat-open {
@@ -19,14 +30,18 @@
 
 /* Media queries for smaller screens */
 @media screen and (max-width: 768px) {
+    :root {
+        --chat-width: 100vw;
+    }
+    
     #chat-container {
-        width: min(400px, 95vw) !important;
-        max-width: 95vw;
-        min-width: 95vw;
-        right: -95vw;
+        width: var(--chat-width) !important;
+        max-width: var(--chat-width);
+        min-width: var(--chat-width);
+        right: calc(-1 * var(--chat-width));
     }
 
-    #main-iframe.chat-open {
+    #main-iframe.pinned {
         width: 0;
         display: none;
     }
@@ -59,7 +74,7 @@
 
 /* Adjust iframe width when chat is open */
 #main-iframe.chat-open {
-    width: calc(100% - min(500px, 85vw));
+    width: calc(100% - var(--chat-width));
 }
 
 /* Height-based adjustments */

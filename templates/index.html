@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="{{ url_for('static', filename='js/resizing.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </head>
 <body>
     <iframe id="main-iframe" src="https://example.com"></iframe>
@@ -29,16 +31,21 @@
                 <h3>AI Assistant</h3>
                 <p class="header-description">AI assistant for procurement team, trained on emails from hodleremail@outlook.com. CC this address in your emails to include them in the AI's knowledge base.</p>
             </div>
-            <button class="close-chat" aria-label="Close chat">
-                <span class="material-icons-round">close</span>
-            </button>
+            <div class="header-actions">
+                <button class="pin-chat" aria-label="Pin chat">
+                    <span class="material-icons-round">push_pin</span>
+                </button>
+                <button class="close-chat" aria-label="Close chat">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
             <div class="resize-handle"></div>
         </div>
         <div id="chat-messages"></div>
         <div id="chat-input-container">
             <div class="quick-prompts">
                 <div class="quick-prompts-header">
-                    <span class="quick-prompts-title">Build Your Query</span>
+                    <span class="quick-prompts-title">Quick Prompts</span>
                     <span class="material-icons-round toggle-icon">expand_more</span>
                 </div>
                 <div class="quick-prompts-content">
@@ -73,6 +80,5 @@
             </div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
